@@ -1,0 +1,1118 @@
+import React, { useState, useRef, useEffect } from 'react';
+
+export default function VBHCreativePlatform() {
+  const [activeModal, setActiveModal] = useState(null);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const canvasRef = useRef(null);
+
+  // NFT Templates
+  const nftTemplates = [
+    { id: 1, name: 'Cosmic Voyager', trait: 'Rare', emoji: '🚀', gradient: 'from-purple-600 via-pink-600 to-blue-600' },
+    { id: 2, name: 'Digital Phoenix', trait: 'Epic', emoji: '🔥', gradient: 'from-orange-500 via-red-600 to-pink-600' },
+    { id: 3, name: 'Neon Dreams', trait: 'Legendary', emoji: '✨', gradient: 'from-cyan-500 via-blue-600 to-purple-600' },
+    { id: 4, name: 'Quantum Leap', trait: 'Rare', emoji: '⚡', gradient: 'from-yellow-400 via-orange-500 to-red-600' },
+    { id: 5, name: 'Crystal Vision', trait: 'Epic', emoji: '💎', gradient: 'from-teal-400 via-cyan-500 to-blue-600' },
+    { id: 6, name: 'Solar Flare', trait: 'Common', emoji: '☀️', gradient: 'from-yellow-300 via-orange-400 to-red-500' },
+  ];
+
+  const memeTemplates = [
+    { id: 'stonks', name: 'STONKS', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: '📈' },
+    { id: 'brain', name: 'GALAXY BRAIN', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', icon: '🧠' },
+    { id: 'fire', name: 'THIS IS FINE', color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', icon: '🔥' },
+    { id: 'success', name: 'SUCCESS', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', icon: '💪' },
+    { id: 'distracted', name: 'DISTRACTED', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', icon: '👀' },
+  ];
+
+  const [nftData, setNftData] = useState({
+    selectedTemplate: nftTemplates[0],
+    customName: '',
+    minting: false,
+    minted: false,
+    mintedNFTs: [],
+    lastReceipt: null
+  });
+
+  const [memeData, setMemeData] = useState({
+    template: memeTemplates[0],
+    topText: '',
+    bottomText: '',
+    generated: false,
+    receipts: []
+  });
+
+  const [giftData, setGiftData] = useState({
+    recipient: '',
+    occasion: 'Birthday',
+    message: '',
+    amount: '',
+    generated: false,
+    receipt: null
+  });
+
+  const [transferData, setTransferData] = useState({
+    type: 'BOHBOO Token',
+    recipient: '',
+    amount: '',
+    datetime: '',
+    notes: ''
+  });
+
+  const [scheduledTransfers, setScheduledTransfers] = useState([]);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const connectWallet = () => {
+    const mockAddress = '0x' + Math.random().toString(16).substr(2, 40);
+    setWalletAddress(mockAddress);
+    setWalletConnected(true);
+    showNotification('Wallet connected successfully! 🎉');
+  };
+
+  const disconnectWallet = () => {
+    setWalletConnected(false);
+    setWalletAddress('');
+    showNotification('Wallet disconnected', 'info');
+  };
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    showNotification('Address copied to clipboard! 📋');
+  };
+
+  const closeModal = () => {
+    setActiveModal(null);
+    setGiftData(prev => ({ ...prev, generated: false, receipt: null }));
+  };
+
+  // MEME GENERATOR
+  useEffect(() => {
+    if (activeModal === 'meme') {
+      drawMeme();
+    }
+  }, [memeData.template, memeData.topText, memeData.bottomText, activeModal]);
+
+  const drawMeme = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = 600;
+    canvas.height = 600;
+
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    const template = memeData.template;
+    const colors = template.color.match(/#[0-9a-f]{6}/gi) || ['#667eea', '#764ba2'];
+    gradient.addColorStop(0, colors[0]);
+    gradient.addColorStop(1, colors[colors.length - 1]);
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = 'bold 200px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillText(template.icon, canvas.width / 2, canvas.height / 2);
+
+    ctx.font = 'bold 40px Impact, Arial Black';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fillText(template.name, canvas.width / 2, canvas.height / 2 + 150);
+
+    if (memeData.topText) {
+      const fontSize = 50;
+      ctx.font = `bold ${fontSize}px Impact, Arial Black`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'white';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 5;
+
+      const topText = memeData.topText.toUpperCase();
+      const lines = wrapText(ctx, topText, canvas.width - 40);
+      
+      let y = 30;
+      lines.forEach(line => {
+        ctx.strokeText(line, canvas.width / 2, y);
+        ctx.fillText(line, canvas.width / 2, y);
+        y += fontSize + 10;
+      });
+    }
+
+    if (memeData.bottomText) {
+      const fontSize = 50;
+      ctx.font = `bold ${fontSize}px Impact, Arial Black`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'white';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 5;
+
+      const bottomText = memeData.bottomText.toUpperCase();
+      const lines = wrapText(ctx, bottomText, canvas.width - 40);
+      
+      let y = canvas.height - 30;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        ctx.strokeText(lines[i], canvas.width / 2, y);
+        ctx.fillText(lines[i], canvas.width / 2, y);
+        y -= fontSize + 10;
+      }
+    }
+
+    setMemeData(prev => ({ ...prev, generated: true }));
+  };
+
+  const wrapText = (ctx, text, maxWidth) => {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0] || '';
+
+    for (let i = 1; i < words.length; i++) {
+      const testLine = currentLine + ' ' + words[i];
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = words[i];
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) lines.push(currentLine);
+    return lines;
+  };
+
+  const downloadMeme = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      showNotification('Canvas not ready!', 'error');
+      return;
+    }
+
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showNotification('Failed to create image!', 'error');
+          return;
+        }
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const filename = `bohboo-meme-${Date.now()}.png`;
+        link.download = filename;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        showNotification('Meme downloaded! 😂🔥', 'success');
+        
+        // Add receipt to receipts array
+        const receipt = {
+          id: Date.now(),
+          template: memeData.template.name,
+          topText: memeData.topText || 'None',
+          bottomText: memeData.bottomText || 'None',
+          filename: filename,
+          date: new Date().toLocaleString(),
+          transactionHash: '0x' + Math.random().toString(16).substr(2, 64)
+        };
+        
+        setMemeData(prev => ({
+          ...prev,
+          receipts: [receipt, ...prev.receipts]
+        }));
+      }, 'image/png');
+    } catch (error) {
+      showNotification('Download failed!', 'error');
+    }
+  };
+
+  // NFT MINTING
+  const mintNFT = () => {
+    if (!walletConnected) {
+      showNotification('Please connect your wallet first! 💼', 'error');
+      return;
+    }
+    
+    setNftData(prev => ({ ...prev, minting: true }));
+    
+    setTimeout(() => {
+      const tokenId = Math.floor(Math.random() * 10000);
+      const mintedNFT = {
+        ...nftData.selectedTemplate,
+        customName: nftData.customName || nftData.selectedTemplate.name,
+        mintedAt: new Date().toLocaleString(),
+        tokenId: tokenId,
+        id: Date.now()
+      };
+      
+      const receipt = {
+        nftName: mintedNFT.customName,
+        tokenId: `#${tokenId}`,
+        rarity: mintedNFT.trait,
+        collection: 'BOHBOO Genesis',
+        wallet: walletAddress,
+        date: mintedNFT.mintedAt,
+        transactionHash: '0x' + Math.random().toString(16).substr(2, 64)
+      };
+      
+      setNftData(prev => ({ 
+        ...prev, 
+        minting: false, 
+        minted: true,
+        mintedNFTs: [...prev.mintedNFTs, mintedNFT],
+        lastReceipt: receipt
+      }));
+      
+      showNotification(`NFT "${mintedNFT.customName}" minted! Token ID: #${tokenId} 🎉`, 'success');
+      
+      setTimeout(() => {
+        setNftData(prev => ({ ...prev, minted: false, customName: '' }));
+      }, 3000);
+    }, 2000);
+  };
+
+  // GIFT BUILDER
+  const generateGift = () => {
+    if (!giftData.recipient || !giftData.amount) {
+      showNotification('Please fill in recipient name and amount!', 'error');
+      return;
+    }
+    
+    const receipt = {
+      recipient: giftData.recipient,
+      occasion: giftData.occasion,
+      amount: `${giftData.amount} BOHBOO`,
+      message: giftData.message || 'Wishing you all the best!',
+      created: new Date().toLocaleString(),
+      giftId: '#' + Date.now()
+    };
+    
+    setGiftData(prev => ({ ...prev, generated: true, receipt }));
+    showNotification('Gift message created! 🎁💝', 'success');
+  };
+
+  const shareGift = () => {
+    const giftText = `🎁 ${giftData.occasion} Gift!\n\nFor: ${giftData.recipient}\nAmount: ${giftData.amount} BOHBOO\n\nMessage: ${giftData.message || 'Wishing you all the best!'}\n\nPowered by VBH1.5 🚀`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `Gift for ${giftData.recipient}`,
+        text: giftText
+      }).then(() => {
+        showNotification('Gift shared successfully! 🎉', 'success');
+      }).catch(() => {
+        navigator.clipboard.writeText(giftText);
+        showNotification('Gift copied to clipboard! 📋', 'success');
+      });
+    } else {
+      navigator.clipboard.writeText(giftText);
+      showNotification('Gift copied to clipboard! 📋', 'success');
+    }
+  };
+
+  // SCHEDULER
+  const scheduleTransfer = () => {
+    if (!walletConnected) {
+      showNotification('Please connect your wallet first! 💼', 'error');
+      return;
+    }
+    
+    if (!transferData.recipient || !transferData.amount || !transferData.datetime) {
+      showNotification('Please fill in all required fields!', 'error');
+      return;
+    }
+
+    const scheduledDate = new Date(transferData.datetime);
+    const now = new Date();
+    
+    if (scheduledDate <= now) {
+      showNotification('Please select a future date and time!', 'error');
+      return;
+    }
+    
+    const transferId = Date.now();
+    const transfer = {
+      ...transferData,
+      datetime: scheduledDate,
+      id: transferId,
+      status: 'pending',
+      createdAt: now,
+      receipt: {
+        type: transferData.type,
+        recipient: transferData.recipient,
+        amount: transferData.amount,
+        scheduledFor: scheduledDate.toLocaleString(),
+        notes: transferData.notes || 'None',
+        transferId: `#${transferId}`,
+        status: 'Pending',
+        createdAt: now.toLocaleString()
+      }
+    };
+    
+    setScheduledTransfers([...scheduledTransfers, transfer]);
+    
+    setTransferData({
+      type: 'BOHBOO Token',
+      recipient: '',
+      amount: '',
+      datetime: '',
+      notes: ''
+    });
+    
+    showNotification('Transfer scheduled successfully! ⏰', 'success');
+  };
+
+  const cancelTransfer = (id) => {
+    setScheduledTransfers(scheduledTransfers.filter(t => t.id !== id));
+    showNotification('Transfer cancelled', 'info');
+  };
+
+  const [timeRemaining, setTimeRemaining] = useState({});
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const newTimeRemaining = {};
+      scheduledTransfers.forEach(transfer => {
+        const now = new Date();
+        const diff = transfer.datetime - now;
+        
+        if (diff > 0) {
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          
+          newTimeRemaining[transfer.id] = { days, hours, minutes, seconds };
+        } else {
+          newTimeRemaining[transfer.id] = 'completed';
+          setScheduledTransfers(prev => 
+            prev.map(t => t.id === transfer.id ? { ...t, status: 'completed' } : t)
+          );
+        }
+      });
+      setTimeRemaining(newTimeRemaining);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [scheduledTransfers]);
+
+  const formatCountdown = (time) => {
+    if (time === 'completed') return '✅ Completed';
+    if (!time) return 'Calculating...';
+    
+    const parts = [];
+    if (time.days > 0) parts.push(`${time.days}d`);
+    if (time.hours > 0) parts.push(`${time.hours}h`);
+    if (time.minutes > 0) parts.push(`${time.minutes}m`);
+    parts.push(`${time.seconds}s`);
+    
+    return parts.join(' ');
+  };
+
+  const emojis = {
+    'Birthday': '🎂',
+    'Anniversary': '💑',
+    'Thank You': '🙏',
+    'Congratulations': '🎊',
+    'Just Because': '💝',
+    'Holiday': '🎄'
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 md:p-8">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700&display=swap');
+        
+        * { box-sizing: border-box; }
+        .orbitron { font-family: 'Orbitron', sans-serif; }
+        .inter { font-family: 'Inter', sans-serif; }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        
+        @keyframes mintSuccess {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-slide-up { animation: slideUp 0.6s ease-out; }
+        .animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+        .animate-mint { animation: mintSuccess 0.5s ease-out; }
+        
+        .glass {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-container {
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+        
+        .modal-container::-webkit-scrollbar { width: 8px; }
+        .modal-container::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .modal-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 10px;
+        }
+      `}</style>
+
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-[100] glass px-6 py-4 rounded-2xl shadow-2xl animate-slide-up ${
+          notification.type === 'success' ? 'border-green-400' : 
+          notification.type === 'error' ? 'border-red-400' : 'border-blue-400'
+        } border-2`}>
+          <p className="text-white font-semibold">{notification.message}</p>
+        </div>
+      )}
+
+      {/* Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8 md:mb-12 animate-slide-up">
+          <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <span className="text-4xl md:text-6xl">🚀</span>
+            <h1 className="orbitron text-3xl sm:text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">
+              VBH1.5
+            </h1>
+          </div>
+          <p className="inter text-base sm:text-lg md:text-2xl text-purple-200 mb-4 md:mb-6 px-4">
+            Creative Generator Platform • Powered by BOHBOO 💡
+          </p>
+          
+          {/* Social Links */}
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 mb-4 md:mb-6 px-4">
+            <a 
+              href="https://x.com/BOHBOOhacks" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="glass px-4 py-2 md:px-6 md:py-3 rounded-full text-white hover:bg-white hover:bg-opacity-10 transition-all inline-flex items-center gap-2 text-sm md:text-base"
+            >
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              <span className="font-semibold">@BOHBOOhacks</span>
+            </a>
+            <a 
+              href="https://discord.gg/yhq3FhS7G" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="glass px-4 py-2 md:px-6 md:py-3 rounded-full text-white hover:bg-white hover:bg-opacity-10 transition-all inline-flex items-center gap-2 text-sm md:text-base"
+            >
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+              <span className="font-semibold">Discord</span>
+            </a>
+          </div>
+
+          {/* Wallet */}
+          <div className="flex justify-center px-4">
+            {!walletConnected ? (
+              <button
+                onClick={connectWallet}
+                className="glass px-6 py-3 md:px-8 md:py-4 rounded-2xl text-white font-bold text-sm md:text-base hover:bg-white hover:bg-opacity-10 transition-all inline-flex items-center gap-2 md:gap-3"
+              >
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Connect Wallet
+              </button>
+            ) : (
+              <div className="glass px-4 py-3 md:px-8 md:py-4 rounded-2xl text-white inline-flex items-center gap-2 md:gap-4 flex-wrap justify-center">
+                <div className="w-2 h-2 md:w-3 md:h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="font-mono text-xs md:text-sm">
+                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </span>
+                <button onClick={copyAddress} className="p-1.5 md:p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition text-sm">
+                  {copied ? '✓' : '📋'}
+                </button>
+                <button onClick={disconnectWallet} className="p-1.5 md:p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition text-sm">
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tools Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <button
+            onClick={() => setActiveModal('nft')}
+            className="glass p-6 md:p-8 rounded-3xl hover:bg-white hover:bg-opacity-10 transition-all transform hover:-translate-y-2 text-left"
+          >
+            <div className="text-5xl md:text-6xl mb-3 md:mb-4">🎨</div>
+            <h3 className="orbitron text-xl md:text-2xl font-bold text-white mb-2">NFT Minter</h3>
+            <p className="text-sm md:text-base text-purple-200">Mint exclusive BOHBOO NFTs</p>
+            {nftData.mintedNFTs.length > 0 && (
+              <div className="mt-3 text-xs text-cyan-300">
+                ✨ {nftData.mintedNFTs.length} NFT{nftData.mintedNFTs.length > 1 ? 's' : ''} minted
+              </div>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveModal('meme')}
+            className="glass p-6 md:p-8 rounded-3xl hover:bg-white hover:bg-opacity-10 transition-all transform hover:-translate-y-2 text-left"
+          >
+            <div className="text-5xl md:text-6xl mb-3 md:mb-4">😂</div>
+            <h3 className="orbitron text-xl md:text-2xl font-bold text-white mb-2">Meme Maker</h3>
+            <p className="text-sm md:text-base text-purple-200">Create viral memes</p>
+          </button>
+
+          <button
+            onClick={() => setActiveModal('gift')}
+            className="glass p-6 md:p-8 rounded-3xl hover:bg-white hover:bg-opacity-10 transition-all transform hover:-translate-y-2 text-left"
+          >
+            <div className="text-5xl md:text-6xl mb-3 md:mb-4">🎁</div>
+            <h3 className="orbitron text-xl md:text-2xl font-bold text-white mb-2">Gift Builder</h3>
+            <p className="text-sm md:text-base text-purple-200">Send token gifts</p>
+          </button>
+
+          <button
+            onClick={() => setActiveModal('scheduler')}
+            className="glass p-6 md:p-8 rounded-3xl hover:bg-white hover:bg-opacity-10 transition-all transform hover:-translate-y-2 text-left"
+          >
+            <div className="text-5xl md:text-6xl mb-3 md:mb-4">🕐</div>
+            <h3 className="orbitron text-xl md:text-2xl font-bold text-white mb-2">Scheduler</h3>
+            <p className="text-sm md:text-base text-purple-200">Schedule transfers</p>
+            {scheduledTransfers.length > 0 && (
+              <div className="mt-3 text-xs text-yellow-300">
+                ⏰ {scheduledTransfers.filter(t => t.status === 'pending').length} pending
+              </div>
+            )}
+          </button>
+        </div>
+
+        {/* NFT MODAL */}
+        {activeModal === 'nft' && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50" onClick={closeModal}>
+            <div className="glass rounded-3xl p-4 md:p-8 w-full max-w-4xl modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 md:mb-8">
+                <button 
+                  onClick={closeModal}
+                  className="text-white hover:text-purple-300 text-lg md:text-xl font-bold flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <h2 className="orbitron text-2xl md:text-3xl font-black text-white">🎨 NFT Minter</h2>
+                <button onClick={closeModal} className="text-white text-3xl hover:text-purple-300">×</button>
+              </div>
+
+              {nftData.minted && (
+                <div className="mb-6 glass p-6 rounded-2xl border-2 border-green-400 animate-mint">
+                  <div className="text-center">
+                    <div className="text-6xl mb-3">🎉</div>
+                    <h3 className="text-white font-bold text-xl mb-2">NFT Minted Successfully!</h3>
+                    <p className="text-green-300">Token ID: #{nftData.mintedNFTs[nftData.mintedNFTs.length - 1]?.tokenId}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-6 md:mb-8">
+                {nftTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => setNftData({ ...nftData, selectedTemplate: template })}
+                    className={`relative p-4 md:p-6 rounded-2xl bg-gradient-to-br ${template.gradient} aspect-square flex flex-col items-center justify-center transition-all hover:scale-105 ${
+                      nftData.selectedTemplate.id === template.id ? 'ring-2 md:ring-4 ring-white' : ''
+                    }`}
+                  >
+                    <div className="text-4xl md:text-7xl mb-2 md:mb-4">{template.emoji}</div>
+                    <h3 className="text-white font-bold text-sm md:text-xl mb-1 md:mb-2 text-center">{template.name}</h3>
+                    <span className="px-2 py-0.5 md:px-3 md:py-1 bg-white bg-opacity-20 rounded-full text-white text-xs md:text-sm">
+                      {template.trait}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-4 md:mb-6">
+                <label className="block text-white font-semibold mb-2 md:mb-3 text-sm md:text-base">Custom Name (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 md:px-6 md:py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="Give your NFT a unique name..."
+                  value={nftData.customName}
+                  onChange={(e) => setNftData({ ...nftData, customName: e.target.value })}
+                />
+              </div>
+
+              <button
+                onClick={mintNFT}
+                disabled={nftData.minting}
+                className="w-full py-4 md:py-5 px-6 md:px-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg md:text-xl rounded-2xl hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+              >
+                {nftData.minting ? '⚡ Minting...' : '🚀 Mint NFT'}
+              </button>
+
+              {/* RECEIPT INSIDE NFT MODAL */}
+              {nftData.lastReceipt && (
+                <div className="mb-6 glass p-6 rounded-2xl border-2 border-green-400 animate-slide-up">
+                  <div className="text-center mb-4">
+                    <div className="text-5xl mb-3">🧾</div>
+                    <h3 className="orbitron text-2xl font-black text-white mb-2">Transaction Receipt</h3>
+                    <div className="text-green-400 font-bold">✓ SUCCESS</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {Object.entries(nftData.lastReceipt).map(([key, value]) => (
+                      <div key={key} className="flex justify-between py-2 border-b border-white border-opacity-10 last:border-0">
+                        <span className="text-purple-300 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-white text-sm font-semibold text-right ml-2">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-center text-purple-300 text-xs mt-4">
+                    Powered by VBH1.5 • BOHBOO 🚀
+                  </div>
+                </div>
+              )}
+
+              {nftData.mintedNFTs.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-white font-bold text-lg mb-3">Your Minted NFTs ({nftData.mintedNFTs.length})</h3>
+                  <div className="space-y-2">
+                    {nftData.mintedNFTs.slice().reverse().map((nft) => (
+                      <div key={nft.id} className="glass p-4 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{nft.emoji}</span>
+                          <div>
+                            <div className="text-white font-bold">{nft.customName}</div>
+                            <div className="text-purple-300 text-sm">#{nft.tokenId} • {nft.mintedAt}</div>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 bg-white bg-opacity-10 rounded-full text-white text-xs">
+                          {nft.trait}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MEME MODAL */}
+        {activeModal === 'meme' && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50" onClick={closeModal}>
+            <div className="glass rounded-3xl p-4 md:p-8 w-full max-w-3xl modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 md:mb-8">
+                <button 
+                  onClick={closeModal}
+                  className="text-white hover:text-purple-300 text-lg md:text-xl font-bold flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <h2 className="orbitron text-2xl md:text-3xl font-black text-white">😂 Meme Maker</h2>
+                <button onClick={closeModal} className="text-white text-3xl hover:text-purple-300">×</button>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-white font-semibold mb-3">Choose Style</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {memeTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => setMemeData({ ...memeData, template })}
+                      className={`p-4 rounded-xl transition-all ${
+                        memeData.template.id === template.id ? 'ring-2 ring-white scale-105' : 'opacity-70 hover:opacity-100'
+                      }`}
+                      style={{ background: template.color }}
+                    >
+                      <div className="text-4xl mb-2">{template.icon}</div>
+                      <div className="text-white font-bold text-sm">{template.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-white font-semibold mb-2">Top Text</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="WHEN YOUR CODE WORKS"
+                    value={memeData.topText}
+                    onChange={(e) => setMemeData({ ...memeData, topText: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">Bottom Text</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="ON FIRST TRY"
+                    value={memeData.bottomText}
+                    onChange={(e) => setMemeData({ ...memeData, bottomText: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-6 bg-gray-900 p-4 rounded-2xl flex justify-center">
+                <canvas 
+                  ref={canvasRef} 
+                  className="rounded-xl shadow-2xl max-w-full border-4 border-purple-500"
+                />
+              </div>
+
+              <button
+                onClick={downloadMeme}
+                className="w-full py-4 px-8 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all flex items-center justify-center gap-2 mb-6"
+              >
+                📥 Download Meme
+              </button>
+
+              {/* RECEIPTS INSIDE MEME MODAL */}
+              {memeData.receipts.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-white font-bold text-xl mb-4">📝 Download History</h3>
+                  {memeData.receipts.map((receipt) => (
+                    <div key={receipt.id} className="glass p-5 rounded-2xl border-2 border-green-400 animate-slide-up">
+                      <div className="text-center mb-4">
+                        <div className="text-4xl mb-2">🧾</div>
+                        <div className="text-green-400 font-bold text-sm">✓ Downloaded</div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between py-2 border-b border-white border-opacity-10">
+                          <span className="text-purple-300 text-sm">Template:</span>
+                          <span className="text-white text-sm font-semibold">{receipt.template}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white border-opacity-10">
+                          <span className="text-purple-300 text-sm">Top Text:</span>
+                          <span className="text-white text-sm font-semibold text-right ml-2">{receipt.topText}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white border-opacity-10">
+                          <span className="text-purple-300 text-sm">Bottom Text:</span>
+                          <span className="text-white text-sm font-semibold text-right ml-2">{receipt.bottomText}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white border-opacity-10">
+                          <span className="text-purple-300 text-sm">Filename:</span>
+                          <span className="text-white text-sm font-semibold text-right ml-2 break-all">{receipt.filename}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white border-opacity-10">
+                          <span className="text-purple-300 text-sm">Date:</span>
+                          <span className="text-white text-sm font-semibold">{receipt.date}</span>
+                        </div>
+                        <div className="flex justify-between py-2">
+                          <span className="text-purple-300 text-sm">TX Hash:</span>
+                          <span className="text-white text-xs font-mono text-right ml-2 break-all">{receipt.transactionHash.slice(0, 20)}...</span>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-purple-300 text-xs mt-3">
+                        Powered by VBH1.5 • BOHBOO 🚀
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-purple-300 text-sm text-center mt-4">
+                ✨ Type your text and watch it appear on the meme instantly!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* GIFT MODAL - Now with inline receipt */}
+        {activeModal === 'gift' && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50" onClick={closeModal}>
+            <div className="glass rounded-3xl p-4 md:p-8 w-full max-w-2xl modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 md:mb-8">
+                <button 
+                  onClick={closeModal}
+                  className="text-white hover:text-purple-300 text-lg md:text-xl font-bold flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <h2 className="orbitron text-2xl md:text-3xl font-black text-white">🎁 Gift Builder</h2>
+                <button onClick={closeModal} className="text-white text-3xl hover:text-purple-300">×</button>
+              </div>
+
+              <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="Recipient name..."
+                  value={giftData.recipient}
+                  onChange={(e) => setGiftData({ ...giftData, recipient: e.target.value })}
+                />
+
+                <select
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  value={giftData.occasion}
+                  onChange={(e) => setGiftData({ ...giftData, occasion: e.target.value })}
+                >
+                  {Object.keys(emojis).map(occasion => (
+                    <option key={occasion} value={occasion}>{occasion}</option>
+                  ))}
+                </select>
+
+                <textarea
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="Your message..."
+                  rows="4"
+                  value={giftData.message}
+                  onChange={(e) => setGiftData({ ...giftData, message: e.target.value })}
+                />
+
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="BOHBOO amount..."
+                  value={giftData.amount}
+                  onChange={(e) => setGiftData({ ...giftData, amount: e.target.value })}
+                />
+              </div>
+
+              <button
+                onClick={generateGift}
+                className="w-full py-3 md:py-4 px-6 md:px-8 bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold text-base md:text-lg rounded-2xl hover:from-pink-600 hover:to-rose-700 transition-all mb-4 md:mb-6"
+              >
+                Create Gift
+              </button>
+
+              {giftData.generated && (
+                <>
+                  <div className="bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 p-6 md:p-8 rounded-3xl text-center animate-slide-up mb-6">
+                    <div className="text-5xl md:text-7xl mb-3 md:mb-4 animate-pulse-slow">{emojis[giftData.occasion]}</div>
+                    <h3 className="text-2xl md:text-3xl font-black text-white mb-2">
+                      For {giftData.recipient} 💝
+                    </h3>
+                    <h4 className="text-xl md:text-2xl font-bold text-white mb-3 md:mb-4">{giftData.occasion}</h4>
+                    <p className="text-white text-base md:text-lg mb-4 md:mb-6 leading-relaxed">
+                      {giftData.message || 'Wishing you all the best! 🎉'}
+                    </p>
+                    <div className="bg-white bg-opacity-20 p-4 md:p-6 rounded-2xl mb-4">
+                      <div className="text-3xl md:text-5xl font-black text-white mb-2">
+                        {giftData.amount} BOHBOO
+                      </div>
+                      <div className="text-white text-xs md:text-sm">Powered by VBH1.5 🚀</div>
+                    </div>
+                    <button
+                      onClick={shareGift}
+                      className="w-full py-3 px-6 bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold rounded-xl transition"
+                    >
+                      📤 Share Gift
+                    </button>
+                  </div>
+
+                  {/* RECEIPT INSIDE GIFT MODAL */}
+                  {giftData.receipt && (
+                    <div className="glass p-6 rounded-2xl border-2 border-green-400 animate-slide-up">
+                      <div className="text-center mb-4">
+                        <div className="text-5xl mb-3">🧾</div>
+                        <h3 className="orbitron text-2xl font-black text-white mb-2">Gift Receipt</h3>
+                        <div className="text-green-400 font-bold">✓ CREATED</div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {Object.entries(giftData.receipt).map(([key, value]) => (
+                          <div key={key} className="flex justify-between py-2 border-b border-white border-opacity-10 last:border-0">
+                            <span className="text-purple-300 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <span className="text-white text-sm font-semibold text-right ml-2">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="text-center text-purple-300 text-xs mt-4">
+                        Powered by VBH1.5 • BOHBOO 🚀
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SCHEDULER MODAL - Now with inline receipts for each transfer */}
+        {activeModal === 'scheduler' && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50" onClick={closeModal}>
+            <div className="glass rounded-3xl p-4 md:p-8 w-full max-w-3xl modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 md:mb-8">
+                <button 
+                  onClick={closeModal}
+                  className="text-white hover:text-purple-300 text-lg md:text-xl font-bold flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <h2 className="orbitron text-2xl md:text-3xl font-black text-white">🕐 Scheduler</h2>
+                <button onClick={closeModal} className="text-white text-3xl hover:text-purple-300">×</button>
+              </div>
+
+              <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
+                <select
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  value={transferData.type}
+                  onChange={(e) => setTransferData({ ...transferData, type: e.target.value })}
+                >
+                  <option>BOHBOO Token</option>
+                  <option>NFT</option>
+                </select>
+
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono text-xs md:text-sm"
+                  placeholder="Recipient address (0x...)"
+                  value={transferData.recipient}
+                  onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value })}
+                />
+
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="Amount or NFT ID"
+                  value={transferData.amount}
+                  onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
+                />
+
+                <input
+                  type="datetime-local"
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  value={transferData.datetime}
+                  onChange={(e) => setTransferData({ ...transferData, datetime: e.target.value })}
+                />
+
+                <textarea
+                  className="w-full px-3 py-2 md:px-4 md:py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm md:text-base"
+                  placeholder="Notes (optional)..."
+                  rows="3"
+                  value={transferData.notes}
+                  onChange={(e) => setTransferData({ ...transferData, notes: e.target.value })}
+                />
+              </div>
+
+              <button
+                onClick={scheduleTransfer}
+                className="w-full py-3 md:py-4 px-6 md:px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-base md:text-lg rounded-2xl hover:from-cyan-600 hover:to-blue-700 transition-all mb-4 md:mb-6"
+              >
+                Schedule Transfer
+              </button>
+
+              {scheduledTransfers.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-white font-bold text-lg md:text-xl mb-3 md:mb-4">
+                    Scheduled Transfers ({scheduledTransfers.filter(t => t.status === 'pending').length} pending)
+                  </h3>
+                  {scheduledTransfers.map(transfer => (
+                    <div key={transfer.id}>
+                      {/* Transfer Card */}
+                      <div className={`glass p-3 md:p-4 rounded-2xl border-l-4 ${
+                        transfer.status === 'completed' ? 'border-green-400' : 'border-purple-400'
+                      } mb-3`}>
+                        <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-purple-300 font-bold text-sm md:text-base">{transfer.type}</div>
+                            <div className="text-white text-xs md:text-sm font-mono mt-1 break-all">
+                              {transfer.recipient.slice(0, 10)}...{transfer.recipient.slice(-8)}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs whitespace-nowrap ${
+                            transfer.status === 'completed' 
+                              ? 'bg-green-500 bg-opacity-20 text-green-300' 
+                              : 'bg-yellow-500 bg-opacity-20 text-yellow-300'
+                          }`}>
+                            {transfer.status}
+                          </span>
+                        </div>
+                        <div className="text-white text-xs md:text-sm mb-2">
+                          Amount: <span className="font-bold">{transfer.amount}</span>
+                        </div>
+                        <div className="text-purple-200 text-xs mb-2">
+                          📅 {transfer.datetime.toLocaleString()}
+                        </div>
+                        {transfer.status === 'pending' && (
+                          <div className="bg-white bg-opacity-10 px-3 py-2 rounded-lg mb-2">
+                            <div className="text-cyan-300 text-sm font-mono">
+                              ⏱️ {formatCountdown(timeRemaining[transfer.id])}
+                            </div>
+                          </div>
+                        )}
+                        {transfer.notes && (
+                          <div className="text-purple-200 text-xs md:text-sm mb-2 md:mb-3 italic break-words">
+                            "{transfer.notes}"
+                          </div>
+                        )}
+                        {transfer.status === 'pending' && (
+                          <button
+                            onClick={() => cancelTransfer(transfer.id)}
+                            className="px-3 py-1.5 md:px-4 md:py-2 bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-300 rounded-lg text-xs md:text-sm transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+
+                      {/* RECEIPT FOR EACH TRANSFER */}
+                      {transfer.receipt && (
+                        <div className="glass p-4 rounded-2xl border-2 border-green-400 mb-4 animate-slide-up">
+                          <div className="text-center mb-3">
+                            <div className="text-4xl mb-2">🧾</div>
+                            <div className="text-green-400 font-bold text-sm">✓ Scheduled</div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {Object.entries(transfer.receipt).map(([key, value]) => (
+                              <div key={key} className="flex justify-between py-1.5 border-b border-white border-opacity-10 last:border-0">
+                                <span className="text-purple-300 text-xs capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                <span className="text-white text-xs font-semibold text-right ml-2 break-all">{value}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="text-center text-purple-300 text-xs mt-3">
+                            Powered by VBH1.5 • BOHBOO 🚀
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
